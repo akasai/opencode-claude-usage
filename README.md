@@ -12,6 +12,13 @@ Weekly       11%  resets in 4d 5h
 
 ## Install
 
+Paste this into your LLM agent (Claude Code, opencode, Cursor, etc.):
+
+```
+Install and configure opencode-claude-usage by following the instructions here:
+https://raw.githubusercontent.com/stevejkang/opencode-claude-usage/refs/heads/main/docs/installation.md
+```
+
 ### Setup
 
 One config file. Restart. Done.
