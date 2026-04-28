@@ -7,3 +7,13 @@ AGENTS.md
 findings.md
 progress.md
 task_plan.md
+
+# Dependencies
+node_modules/
+
+# Build
+dist/
+*.tgz
+
+# Evidence
+.sisyphus/evidence/
