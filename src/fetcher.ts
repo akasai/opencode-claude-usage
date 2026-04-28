@@ -1,7 +1,7 @@
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs"
 import { homedir } from "node:os"
 import { join } from "node:path"
-import { readKeychainCredentials } from "./keychain.js"
+import { readKeychainCredentials, readCredentialsFile, readOpenCodeAuth, refreshToken, isTokenExpired } from "./keychain.js"
 import { fetchOAuthUsage, fetchOAuthProfile } from "./oauth-client.js"
 import { extractSessionKey, fetchWebUsage } from "./cookie-reader.js"
 import { detectClaude, probeCLIUsage, probeStatus } from "./cli-probe.js"
@@ -68,7 +68,44 @@ export async function fetchUsageData(): Promise<FetchResult> {
     // continue
   }
 
-  // ── Step 1: OAuth via Keychain (macOS only) ─────────────────────────
+  // ── Step 1: Credentials file (~/.claude/.credentials.json, cross-platform)
+  try {
+    const fileCreds = readCredentialsFile()
+    if (fileCreds) {
+      const [usage, profile] = await Promise.all([
+        fetchOAuthUsage(fileCreds.accessToken),
+        fetchOAuthProfile(fileCreds.accessToken),
+      ])
+      if (usage) {
+        return { usage, profile, authMethod: "oauth" }
+      }
+    }
+  } catch {
+    // continue
+  }
+
+  // ── Step 2: OpenCode auth.json + token refresh (cross-platform)
+  try {
+    const ocAuth = readOpenCodeAuth()
+    if (ocAuth) {
+      let token = ocAuth.accessToken
+      if (isTokenExpired(ocAuth.expiresAt) && ocAuth.refreshToken) {
+        const refreshed = await refreshToken(ocAuth.refreshToken)
+        if (refreshed) token = refreshed.accessToken
+      }
+      const [usage, profile] = await Promise.all([
+        fetchOAuthUsage(token),
+        fetchOAuthProfile(token),
+      ])
+      if (usage) {
+        return { usage, profile, authMethod: "oauth" }
+      }
+    }
+  } catch {
+    // continue
+  }
+
+  // ── Step 3: Keychain (macOS only)
   try {
     const credentials = await readKeychainCredentials()
     if (credentials?.hasProfileScope) {
@@ -80,7 +117,6 @@ export async function fetchUsageData(): Promise<FetchResult> {
         return { usage, profile, authMethod: "oauth" }
       }
     }
-    // No profile scope or OAuth failed → continue to CLI probe
   } catch {
     // continue
   }
