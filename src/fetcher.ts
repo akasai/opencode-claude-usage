@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync, mkdirSync } from "node:fs"
+import { readFileSync, writeFileSync, renameSync, mkdirSync } from "node:fs"
 import { homedir } from "node:os"
 import { join } from "node:path"
 import { readKeychainCredentials, readCredentialsFile, readOpenCodeAuth, refreshToken, isTokenExpired } from "./keychain.js"
@@ -38,20 +38,25 @@ function writeCache(result: FetchResult): void {
   try {
     mkdirSync(CACHE_DIR, { recursive: true })
     const cached: CachedResult = { timestamp: Date.now(), result }
-    writeFileSync(CACHE_FILE, JSON.stringify(cached), "utf8")
+    const tmpFile = `${CACHE_FILE}.${process.pid}.tmp`
+    writeFileSync(tmpFile, JSON.stringify(cached), { encoding: "utf8", mode: 0o600 })
+    renameSync(tmpFile, CACHE_FILE)
   } catch {}
 }
 
 /**
- * Fetch Claude usage data via 4-step fallback chain:
- * 1. OAuth API (only if user:profile scope available)
- * 2. Claude CLI PTY probe (primary for most users)
- * 3. Browser cookies (Chrome/Firefox)
- * 4. Failure → authMethod "none"
+ * Fetch Claude usage data via 6-step fallback chain:
+ * 0. Environment variable token (CLAUDE_CODE_OAUTH_TOKEN)
+ * 1. Credentials file (~/.claude/.credentials.json)
+ * 2. OpenCode auth.json + token refresh
+ * 3. Keychain (macOS only, user:profile scope required)
+ * 4. CLI PTY probe (macOS/Linux, Python3 required)
+ * 5. Browser cookies (Chrome/Firefox)
  *
  * Never throws. Always returns a FetchResult.
  */
 const failedTokens = new Set<string>()
+let lastRefreshedToken: string | null = null
 
 async function tryOAuthToken(token: string): Promise<FetchResult | null> {
   if (failedTokens.has(token)) return null
@@ -71,6 +76,8 @@ async function tryOAuthToken(token: string): Promise<FetchResult | null> {
 }
 
 export async function fetchUsageData(): Promise<FetchResult> {
+  failedTokens.clear()
+
   // ── Step 0: Environment variable token (works on all OS)
   try {
     const envToken = process.env.CLAUDE_CODE_OAUTH_TOKEN
@@ -93,10 +100,13 @@ export async function fetchUsageData(): Promise<FetchResult> {
   try {
     const ocAuth = readOpenCodeAuth()
     if (ocAuth) {
-      let token = ocAuth.accessToken
-      if (isTokenExpired(ocAuth.expiresAt) && ocAuth.refreshToken) {
+      let token = lastRefreshedToken ?? ocAuth.accessToken
+      if ((!lastRefreshedToken && isTokenExpired(ocAuth.expiresAt)) && ocAuth.refreshToken) {
         const refreshed = await refreshToken(ocAuth.refreshToken)
-        if (refreshed) token = refreshed.accessToken
+        if (refreshed) {
+          token = refreshed.accessToken
+          lastRefreshedToken = token
+        }
       }
       const result = await tryOAuthToken(token)
       if (result) return result
@@ -112,7 +122,7 @@ export async function fetchUsageData(): Promise<FetchResult> {
     }
   } catch {}
 
-  // ── Step 2: CLI PTY probe (primary for most users) ──────────────────
+  // ── Step 4: CLI PTY probe (macOS/Linux, primary when OAuth unavailable)
   try {
     const installed = await detectClaude()
     if (installed) {
@@ -156,7 +166,7 @@ export async function fetchUsageData(): Promise<FetchResult> {
     // continue
   }
 
-  // ── Step 3: Browser cookies ──────────────────────────────────────────
+  // ── Step 5: Browser cookies (macOS/Linux)
   try {
     const sessionKey = await extractSessionKey()
     if (sessionKey) {
@@ -259,11 +269,11 @@ export function createRefreshLoop(
       }
     } catch (err) {
       setState({
-        status: "error",
-        data: null,
-        profile: null,
-        authMethod: "none",
-        error: String(err),
+        status: lastData ? "success" : "error",
+        data: lastData,
+        profile: lastProfile,
+        authMethod: lastAuthMethod,
+        error: lastData ? null : String(err),
       })
     } finally {
       refreshing = false
@@ -273,7 +283,7 @@ export function createRefreshLoop(
 
   return {
     start() {
-      // Initial fetch immediately
+      if (timer !== null) return
       void refresh()
       timer = setInterval(() => { void refresh() }, intervalMs)
     },

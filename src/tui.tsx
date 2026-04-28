@@ -142,7 +142,7 @@ const tui: TuiPlugin = async (api, rawOptions, _meta) => {
                   const resetStr = formatRelativeTime(reset)
                   return (
                     <box height={1} flexDirection="row">
-                      <text fg={fg}>{label.padEnd(8)}</text>
+                      <text fg={fg}>{label.padEnd(10)}</text>
                       <text fg={pctColor}>{formatPercentage(pct).padStart(5)}</text>
                       <text fg={dim}>{`  resets in ${resetStr}`}</text>
                     </box>

@@ -1,15 +1,45 @@
 import { execFile } from "node:child_process"
 import { createDecipheriv, pbkdf2Sync } from "node:crypto"
-import { homedir } from "node:os"
-import { join } from "node:path"
+import { copyFileSync, unlinkSync } from "node:fs"
 import { readdir, stat } from "node:fs/promises"
+import { homedir, tmpdir } from "node:os"
+import { join } from "node:path"
 import type { OAuthUsageResponse } from "./types.js"
 import { snakeToCamel } from "./oauth-client.js"
 
-const CHROME_COOKIE_DB = join(
-  homedir(),
-  "Library/Application Support/Google/Chrome/Default/Cookies",
-)
+function getChromeCookieDb(): string | null {
+  switch (process.platform) {
+    case "darwin":
+      return join(homedir(), "Library/Application Support/Google/Chrome/Default/Cookies")
+    case "linux":
+      return join(homedir(), ".config/google-chrome/Default/Cookies")
+    default:
+      return null
+  }
+}
+
+function getFirefoxProfilesDir(): string | null {
+  switch (process.platform) {
+    case "darwin":
+      return join(homedir(), "Library/Application Support/Firefox/Profiles")
+    case "linux":
+      return join(homedir(), ".mozilla/firefox")
+    default:
+      return null
+  }
+}
+
+function getChromeDecryptionPassword(): string | null {
+  switch (process.platform) {
+    case "darwin":
+      return null
+    case "linux":
+      return "peanuts"
+    default:
+      return null
+  }
+}
+
 const CHROME_SAFE_STORAGE_SERVICE = "Chrome Safe Storage"
 const CLAUDE_DOMAIN = "%claude.ai%"
 const SESSION_KEY_COOKIE = "sessionKey"
@@ -32,12 +62,19 @@ export function detectSqlite(): Promise<boolean> {
 }
 
 function runSqlite(dbPath: string, query: string): Promise<string | null> {
+  const tempPath = join(tmpdir(), `cookie-reader-${Date.now()}.sqlite`)
+  try {
+    copyFileSync(dbPath, tempPath)
+  } catch {
+    return Promise.resolve(null)
+  }
   return new Promise((resolve) => {
     execFile(
       "sqlite3",
-      ["-readonly", dbPath, query],
+      ["-readonly", tempPath, query],
       { timeout: SQLITE_TIMEOUT },
       (err, stdout) => {
+        try { unlinkSync(tempPath) } catch {}
         resolve(err ? null : stdout.trim())
       },
     )
@@ -86,12 +123,15 @@ function decryptChromeCookie(encrypted: Buffer, safeStorageKey: string): string 
 
 async function extractChromeCookie(): Promise<string | null> {
   try {
+    const dbPath = getChromeCookieDb()
+    if (!dbPath) return null
+
     const hasSqlite = await detectSqlite()
     if (!hasSqlite) return null
 
     const result = await runSqlite(
-      CHROME_COOKIE_DB,
-      `SELECT hex(encrypted_value) FROM cookies WHERE host_key LIKE '${CLAUDE_DOMAIN}' AND name = '${SESSION_KEY_COOKIE}' LIMIT 1`,
+      dbPath,
+      "SELECT hex(encrypted_value) FROM cookies WHERE host_key LIKE '%claude.ai%' AND name = 'sessionKey' LIMIT 1",
     )
     if (!result) return null
 
@@ -99,10 +139,14 @@ async function extractChromeCookie(): Promise<string | null> {
     if (!hexValue) return null
 
     const encryptedBuffer = Buffer.from(hexValue, "hex")
-    const safeStorageKey = await readSecurityPassword(CHROME_SAFE_STORAGE_SERVICE)
-    if (!safeStorageKey) return null
 
-    const decrypted = decryptChromeCookie(encryptedBuffer, safeStorageKey)
+    let password: string | null = getChromeDecryptionPassword()
+    if (!password) {
+      password = await readSecurityPassword(CHROME_SAFE_STORAGE_SERVICE)
+    }
+    if (!password) return null
+
+    const decrypted = decryptChromeCookie(encryptedBuffer, password)
     if (!decrypted?.startsWith(SESSION_KEY_PREFIX)) return null
 
     return decrypted
@@ -118,7 +162,8 @@ async function extractFirefoxCookie(): Promise<string | null> {
     const hasSqlite = await detectSqlite()
     if (!hasSqlite) return null
 
-    const ffBase = join(homedir(), "Library/Application Support/Firefox/Profiles")
+    const ffBase = getFirefoxProfilesDir()
+    if (!ffBase) return null
     let cookieDb: string | null = null
 
     try {

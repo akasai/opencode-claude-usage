@@ -1,14 +1,16 @@
 import { execFile } from "node:child_process"
-import { readFileSync, writeFileSync } from "node:fs"
+import { readFileSync } from "node:fs"
 import { homedir } from "node:os"
 import { join } from "node:path"
-import type { OAuthCredentials, KeychainPayload } from "./types.js"
+import type { OAuthCredentials } from "./types.js"
 
 const KEYCHAIN_SERVICE = "Claude Code-credentials"
 const PROFILE_SCOPE = "user:profile"
 const EXPIRY_BUFFER_MS = 5 * 60 * 1000
 const CREDENTIALS_FILE = join(homedir(), ".claude", ".credentials.json")
-const OPENCODE_AUTH_FILE = join(homedir(), ".local", "share", "opencode", "auth.json")
+const OPENCODE_AUTH_FILE = process.platform === "win32"
+  ? join(process.env.APPDATA ?? join(homedir(), "AppData", "Roaming"), "opencode", "auth.json")
+  : join(process.env.XDG_DATA_HOME ?? join(homedir(), ".local", "share"), "opencode", "auth.json")
 const OAUTH_CLIENT_ID = "9d1c250a-e61b-44d9-88ed-5944d1962f5e"
 const REFRESH_ENDPOINT = "https://platform.claude.com/v1/oauth/token"
 const REFRESH_TIMEOUT_MS = 10_000
@@ -100,6 +102,7 @@ export async function refreshToken(refreshTokenStr: string): Promise<OAuthCreden
 }
 
 export function readKeychainCredentials(): Promise<OAuthCredentials | null> {
+  if (process.platform !== "darwin") return Promise.resolve(null)
   return new Promise((resolve) => {
     execFile(
       "/usr/bin/security",

@@ -73,24 +73,47 @@ const MONTHS: Record<string, number> = {
   jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11,
 }
 
+function resolveInTimezone(year: number, month: number, day: number, h24: number, min: number, tz: string | null): number {
+  if (tz) {
+    try {
+      const probe = new Date(Date.UTC(year, month, day, h24, min, 0))
+      const fmt = new Intl.DateTimeFormat("en-US", {
+        timeZone: tz,
+        year: "numeric", month: "2-digit", day: "2-digit",
+        hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false,
+      })
+      const localStr = fmt.format(probe)
+      const localParts = localStr.match(/(\d+)\/(\d+)\/(\d+),?\s*(\d+):(\d+):(\d+)/)
+      if (localParts) {
+        const tzOffsetMs = probe.getTime() - new Date(
+          Number(localParts[3]), Number(localParts[1]) - 1, Number(localParts[2]),
+          Number(localParts[4]), Number(localParts[5]), Number(localParts[6]),
+        ).getTime()
+        return new Date(year, month, day, h24, min, 0, 0).getTime() + tzOffsetMs
+      }
+    } catch {}
+  }
+  return new Date(year, month, day, h24, min, 0, 0).getTime()
+}
+
 function buildDate(
   now: Date, monthStr: string, day: number, hour: number, min: number, ampm: string, tz: string | null,
 ): number | null {
   const month = MONTHS[monthStr.toLowerCase().slice(0, 3)]
   if (month === undefined) return null
   const h24 = to24h(hour, ampm)
-  const d = new Date(now.getFullYear(), month, day, h24, min, 0, 0)
-  if (d.getTime() < now.getTime()) d.setFullYear(d.getFullYear() + 1)
-  return d.getTime()
+  const ts = resolveInTimezone(now.getFullYear(), month, day, h24, min, tz)
+  if (ts < now.getTime()) return resolveInTimezone(now.getFullYear() + 1, month, day, h24, min, tz)
+  return ts
 }
 
 function buildDateToday(
   now: Date, hour: number, min: number, ampm: string, tz: string | null,
 ): number | null {
   const h24 = to24h(hour, ampm)
-  const d = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h24, min, 0, 0)
-  if (d.getTime() < now.getTime()) d.setDate(d.getDate() + 1)
-  return d.getTime()
+  const ts = resolveInTimezone(now.getFullYear(), now.getMonth(), now.getDate(), h24, min, tz)
+  if (ts < now.getTime()) return resolveInTimezone(now.getFullYear(), now.getMonth(), now.getDate() + 1, h24, min, tz)
+  return ts
 }
 
 /**
@@ -110,21 +133,7 @@ export function formatRelativeTime(isoString: string | null | undefined): string
 
   if (Number.isNaN(target)) return isoString
 
-  const diffMs = target - now
-
-  if (diffMs <= 0) return "now"
-
-  const totalSeconds = Math.floor(diffMs / 1000)
-  const totalMinutes = Math.floor(totalSeconds / 60)
-  const totalHours = Math.floor(totalMinutes / 60)
-  const days = Math.floor(totalHours / 24)
-  const hours = totalHours % 24
-  const minutes = totalMinutes % 60
-
-  if (days > 0) return `${days}d ${hours}h`
-  if (totalHours > 0) return `${totalHours}h ${minutes}m`
-  if (totalMinutes > 0) return `${totalMinutes}m`
-  return "now"
+  return formatRelativeMs(target - now)
 }
 
 /**

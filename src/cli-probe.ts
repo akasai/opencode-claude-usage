@@ -11,7 +11,7 @@ let claudeDetected: boolean | null = null
 let python3Detected: boolean | null = null
 
 export function detectClaude(): Promise<boolean> {
-  if (claudeDetected !== null) return Promise.resolve(claudeDetected)
+  if (claudeDetected === true) return Promise.resolve(true)
   return new Promise((resolve) => {
     execFile("which", ["claude"], { timeout: DETECT_TIMEOUT_MS }, (err, stdout) => {
       claudeDetected = !err && stdout.trim().length > 0
@@ -21,7 +21,7 @@ export function detectClaude(): Promise<boolean> {
 }
 
 export function detectPython3(): Promise<boolean> {
-  if (python3Detected !== null) return Promise.resolve(python3Detected)
+  if (python3Detected === true) return Promise.resolve(true)
   return new Promise((resolve) => {
     execFile("which", ["python3"], { timeout: DETECT_TIMEOUT_MS }, (err, stdout) => {
       python3Detected = !err && stdout.trim().length > 0
@@ -48,10 +48,6 @@ export function extractPercent(text: string, label: string): number | null {
   return null
 }
 
-function allPercents(text: string): number[] {
-  const matches = text.matchAll(/(\d{1,3}(?:\.\d+)?)\s*%/g)
-  return [...matches].map((m) => Number.parseFloat(m[1]))
-}
 
 /**
  * Python3 PTY wrapper: creates a real PTY pair via pty.openpty(), forks the
@@ -59,6 +55,9 @@ function allPercents(text: string): number[] {
  * macOS `script` command fails with piped stdio — Python3 pty avoids this.
  */
 function buildPtyScript(claudeBinary: string): string {
+  if (/["\\'\n\r]/.test(claudeBinary)) {
+    throw new Error("Unsafe claude binary path")
+  }
   return `
 import pty, os, sys, select, time, signal, re
 
@@ -251,8 +250,7 @@ function parseUsageOutput(rawOutput: string): Partial<CLIProbeResult> {
   let sessionPercent = extractPercentByLabel(lines, "Current session")
   let weeklyPercent = extractPercentByLabel(lines, "Current week (all models)") ??
     extractPercentByLabel(lines, "Current week")
-  const opusPercent = extractPercentByLabel(lines, "Current week (Opus)") ??
-    extractPercentByLabel(lines, "Current week (Sonnet only)")
+  const opusPercent = extractPercentByLabel(lines, "Current week (Opus)")
   const sonnetPercent = extractPercentByLabel(lines, "Current week (Sonnet)")
 
   const sessionReset = extractResetByLabel(lines, "Current session")
