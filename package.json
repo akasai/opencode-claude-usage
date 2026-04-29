@@ -1,6 +1,6 @@
 {
   "name": "opencode-claude-usage",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "OpenCode TUI sidebar plugin displaying Claude account usage statistics",
   "type": "module",
   "exports": {
