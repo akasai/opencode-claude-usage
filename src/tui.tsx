@@ -135,10 +135,10 @@ const tui: TuiPlugin = async (api, rawOptions, _meta) => {
                   const pct = w.utilization
                   const reset = w.resetsAt
                   const label = windowLabel(key)
-                  const pctColor = pct === null ? fg
+                  const pctColor = pct === null ? valueFg
                     : pct >= 80 ? CLAUDE_ORANGE
                     : pct >= 51 ? "#F0A875"
-                    : fg
+                    : valueFg
                   const resetStr = formatRelativeTime(reset)
                   return (
                     <box height={1} flexDirection="row">
