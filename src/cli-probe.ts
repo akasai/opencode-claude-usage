@@ -2,7 +2,7 @@ import { execFile, spawn } from "node:child_process"
 import { writeFileSync, unlinkSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import type { CLIProbeResult } from "./types.js"
+import type { CLIProbeResult } from "./types"
 
 const PROBE_TIMEOUT_MS = 25_000
 const DETECT_TIMEOUT_MS = 5_000

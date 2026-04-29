@@ -4,8 +4,8 @@ import { copyFileSync, unlinkSync } from "node:fs"
 import { readdir, stat } from "node:fs/promises"
 import { homedir, tmpdir } from "node:os"
 import { join } from "node:path"
-import type { OAuthUsageResponse } from "./types.js"
-import { snakeToCamel } from "./oauth-client.js"
+import type { OAuthUsageResponse } from "./types"
+import { snakeToCamel } from "./oauth-client"
 
 function getChromeCookieDb(): string | null {
   switch (process.platform) {

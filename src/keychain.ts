@@ -2,7 +2,7 @@ import { execFile } from "node:child_process"
 import { readFileSync } from "node:fs"
 import { homedir } from "node:os"
 import { join } from "node:path"
-import type { OAuthCredentials } from "./types.js"
+import type { OAuthCredentials } from "./types"
 
 const KEYCHAIN_SERVICE = "Claude Code-credentials"
 const PROFILE_SCOPE = "user:profile"

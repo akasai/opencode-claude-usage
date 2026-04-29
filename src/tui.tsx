@@ -1,9 +1,9 @@
 /** @jsxImportSource @opentui/solid */
 import { createSignal } from "solid-js"
 import type { TuiPlugin, TuiPluginModule, TuiSlotContext } from "@opencode-ai/plugin/tui"
-import type { UsageState, PluginOptions } from "./types.js"
-import { createRefreshLoop } from "./fetcher.js"
-import { formatRelativeTime, formatPercentage, formatCost, windowLabel } from "./format.js"
+import type { UsageState, PluginOptions } from "./types"
+import { createRefreshLoop } from "./fetcher"
+import { formatRelativeTime, formatPercentage, formatCost, windowLabel } from "./format"
 
 const CLAUDE_ORANGE = "#E07A3A"
 

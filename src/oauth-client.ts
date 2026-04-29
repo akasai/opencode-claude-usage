@@ -1,4 +1,4 @@
-import type { OAuthUsageResponse, ProfileResponse } from "./types.js"
+import type { OAuthUsageResponse, ProfileResponse } from "./types"
 
 const BASE_URL = "https://api.anthropic.com"
 const BETA_HEADER = "oauth-2025-04-20"

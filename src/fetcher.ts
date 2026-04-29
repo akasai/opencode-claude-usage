@@ -1,11 +1,11 @@
 import { readFileSync, writeFileSync, renameSync, mkdirSync } from "node:fs"
 import { homedir } from "node:os"
 import { join } from "node:path"
-import { readKeychainCredentials, readCredentialsFile, readOpenCodeAuth, refreshToken, isTokenExpired } from "./keychain.js"
-import { fetchOAuthUsage, fetchOAuthProfile } from "./oauth-client.js"
-import { extractSessionKey, fetchWebUsage } from "./cookie-reader.js"
-import { detectClaude, probeCLIUsage, probeStatus } from "./cli-probe.js"
-import type { UsageState, OAuthUsageResponse, ProfileResponse, AuthMethod } from "./types.js"
+import { readKeychainCredentials, readCredentialsFile, readOpenCodeAuth, refreshToken, isTokenExpired } from "./keychain"
+import { fetchOAuthUsage, fetchOAuthProfile } from "./oauth-client"
+import { extractSessionKey, fetchWebUsage } from "./cookie-reader"
+import { detectClaude, probeCLIUsage, probeStatus } from "./cli-probe"
+import type { UsageState, OAuthUsageResponse, ProfileResponse, AuthMethod } from "./types"
 
 interface FetchResult {
   usage: OAuthUsageResponse | null
