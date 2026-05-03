@@ -127,13 +127,13 @@ const tui: TuiPlugin = async (api, rawOptions, _meta) => {
               <box flexDirection="column">
                 {profile?.email ? (
                   <box height={1}>
-                    <text fg={dim}>{profile.email}</text>
+                    <text fg={dim}>{` ${profile.email}`}</text>
                   </box>
                 ) : null}
 
                 {profile?.email ? (
                   <box height={1}>
-                    <text fg={dim}>{`via ${s.authMethod}`}</text>
+                    <text fg={dim}>{` via ${s.authMethod}`}</text>
                   </box>
                 ) : null}
 
@@ -165,7 +165,7 @@ const tui: TuiPlugin = async (api, rawOptions, _meta) => {
                       const resetStr = formatRelativeTime(w.resetsAt)
                       return (
                         <box height={1} flexDirection="row">
-                          <text fg={fg}>{label.padEnd(10)}</text>
+                          <text fg={fg}>{` ${label.padEnd(9)}`}</text>
                           <text fg={pctColor}>{formatPercentage(pct).padStart(5)}</text>
                           <text fg={dim}>{`  resets in ${resetStr}`}</text>
                         </box>

@@ -5,17 +5,17 @@ An [opencode](https://opencode.ai) TUI sidebar plugin that displays your Claude 
 **Text mode** (default):
 ```
 ▼ Claude Usage
-juneyoung.kang@wantedlab.com
-via cli
-Session      31%  resets in 3h 16m
-Weekly       11%  resets in 4d 5h
+ juneyoung.kang@wantedlab.com
+ via cli
+ Session      31%  resets in 3h 16m
+ Weekly       11%  resets in 4d 5h
 ```
 
 **Bar mode** (`"displayMode": "bar"`):
 ```
 ▼ Claude Usage
-juneyoung.kang@wantedlab.com
-via oauth
+ juneyoung.kang@wantedlab.com
+ via cli
  Session  █████░░░░░░░░░  31% (3h 16m)
  Weekly   ██░░░░░░░░░░░░  11% (4d 5h)
 ```
